@@ -1,0 +1,9 @@
+# Development overrides: bind-mount current directory into /data so `captions.srt` appears on host
+version: "3.9"
+services:
+  intohear:
+    volumes:
+      - ./:/data
+    working_dir: /data
+    # Example default command (you can override on the CLI):
+    # command: ["https://www.youtube.com/watch?v=..."]

@@ -1,0 +1,15 @@
+# Ignore build outputs and editor artifacts
+bin/
+obj/
+.vs/
+*.user
+*.suo
+.DS_Store
+
+# Docker files
+Dockerfile
+docker-compose*.yml
+
+# Git
+.git
+.gitignore

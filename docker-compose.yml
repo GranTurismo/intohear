@@ -1,0 +1,13 @@
+# docker-compose for IntoHear CLI
+version: "3.9"
+services:
+  intohear:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: intohear:latest
+    environment:
+      DOTNET_ENVIRONMENT: Production
+    # If you'd like to pass CLI args, add e.g.:
+    # command: ["--help"]
+    restart: "no"
