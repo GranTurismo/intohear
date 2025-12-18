@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Whisper.net;
 using Whisper.net.Ggml;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -90,8 +91,54 @@ public class CaptionGenerator
     
     }
 
+    private static bool IsExecutableInPath(string fileName)
+    {
+        var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? Array.Empty<string>();
+        var candidateNames = new List<string> { fileName };
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            var exts = Environment.GetEnvironmentVariable("PATHEXT")?.Split(';') ?? new[] { ".exe", ".bat", ".cmd" };
+            candidateNames = exts.Select(ext => fileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase) ? fileName : fileName + ext).ToList();
+        }
+
+        foreach (var dir in paths)
+        {
+            try
+            {
+                foreach (var cand in candidateNames)
+                {
+                    var full = Path.Combine(dir, cand);
+                    if (File.Exists(full)) return true;
+                }
+            }
+            catch
+            {
+                // Ignore malformed PATH entries
+            }
+        }
+
+        return false;
+    }
+
     private static async Task<int> RunProcessAsync(string fileName, string arguments)
     {
+        // quick PATH check - provide actionable hint early
+        if (!IsExecutableInPath(fileName))
+        {
+            string hint = fileName switch
+            {
+                "yt-dlp" when RuntimeInformation.IsOSPlatform(OSPlatform.OSX) => "brew install yt-dlp",
+                "yt-dlp" when RuntimeInformation.IsOSPlatform(OSPlatform.Windows) => "choco install yt-dlp (or scoop install yt-dlp)",
+                "yt-dlp" when RuntimeInformation.IsOSPlatform(OSPlatform.Linux) => "sudo apt install yt-dlp (or pip install -U yt-dlp)",
+                _ when RuntimeInformation.IsOSPlatform(OSPlatform.OSX) => $"brew install {fileName}",
+                _ when RuntimeInformation.IsOSPlatform(OSPlatform.Windows) => $"choco install {fileName}",
+                _ => $"sudo apt install {fileName} (or pip install {fileName})"
+            };
+
+            throw new Exception($"Executable '{fileName}' not found in PATH. Ensure '{fileName}' is installed and accessible. Example: {hint}");
+        }
+
         var psi = new ProcessStartInfo
         {
             FileName = fileName,
@@ -102,7 +149,27 @@ public class CaptionGenerator
             CreateNoWindow = true
         };
 
-        using var process = Process.Start(psi);
+        Process? process;
+        try
+        {
+            process = Process.Start(psi);
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // Provide platform-specific install hints
+            string hint = fileName switch
+            {
+                "yt-dlp" when RuntimeInformation.IsOSPlatform(OSPlatform.OSX) => "brew install yt-dlp",
+                "yt-dlp" when RuntimeInformation.IsOSPlatform(OSPlatform.Windows) => "choco install yt-dlp (or scoop install yt-dlp)",
+                "yt-dlp" when RuntimeInformation.IsOSPlatform(OSPlatform.Linux) => "sudo apt install yt-dlp (or pip install -U yt-dlp)",
+                _ when RuntimeInformation.IsOSPlatform(OSPlatform.OSX) => $"brew install {fileName}",
+                _ when RuntimeInformation.IsOSPlatform(OSPlatform.Windows) => $"choco install {fileName}",
+                _ => $"sudo apt install {fileName} (or pip install {fileName})"
+            };
+
+            throw new Exception($"Failed to start process '{fileName}': {ex.Message}. Make sure '{fileName}' is installed and available in your PATH. Example: {hint}", ex);
+        }
+
         if (process == null)
         {
             throw new Exception($"Failed to start process '{fileName}'. Make sure it is installed and in your PATH.");
