@@ -20,6 +20,8 @@ A C# library to generate YouTube video captions using Whisper.
 
 Run `yt-dlp --version` to verify it is accessible from your shell.
 
+If you prefer to run Inside Docker, the provided `Dockerfile` installs `ffmpeg` and `yt-dlp` in the runtime image so you don't need to install them on the host.
+
 ## Usage
 
 ### Library
